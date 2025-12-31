@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Google Cloud Text-to-Speechを使った誰でも作れるオーディオブック完全作成ガイド - 2026年新春お年玉プレゼント">
+    <title>🎁 誰でも作れる！オーディオブック完全作成ガイド | 2026年新春版</title>
+    <style>
+        :root {
+            --primary-color: #d32f2f;
+            --secondary-color: #1976d2;
+            --gold-color: #ffd700;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --text-color: #333;
+            --light-bg: #f8f9fa;
+            --code-bg: #2d2d2d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", YuGothic, Meiryo, sans-serif;
+            line-height: 1.8;
+            color: var(--text-color);
+            background: var(--light-bg);
+        }
+
+        .hero {
+            background: var(--bg-gradient);
+            color: white;
+            padding: 3rem 1rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .hero h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .hero .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            margin-bottom: 0.5rem;
+        }
+
+        .hero .date {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .toc {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .toc h2 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .toc ul {
+            list-style: none;
+        }
+
+        .toc li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .toc li:last-child {
+            border-bottom: none;
+        }
+
+        .toc a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .toc a:hover {
+            color: var(--primary-color);
+            padding-left: 10px;
+        }
+
+        .section {
+            background: white;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            margin: 2rem 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--gold-color);
+        }
+
+        h3 {
+            color: var(--secondary-color);
+            font-size: 1.4rem;
+            margin: 1.5rem 0 1rem 0;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.2rem;
+            margin: 1rem 0 0.5rem 0;
+        }
+
+        p {
+            margin: 1rem 0;
+        }
+
+        .emoji-box {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border-left: 4px solid var(--secondary-color);
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            color: #e83e8c;
+        }
+
+        pre {
+            background: var(--code-bg);
+            color: #f8f8f2;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            line-height: 1.6;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: #f8f8f2;
+        }
+
+        ul, ol {
+            margin: 1rem 0;
+            padding-left: 2rem;
+        }
+
+        li {
+            margin: 0.5rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        th {
+            background: var(--bg-gradient);
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.8rem 2rem;
+            background: var(--bg-gradient);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            margin: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        .footer {
+            background: var(--code-bg);
+            color: white;
+            text-align: center;
+            padding: 2rem 1rem;
+            margin-top: 3rem;
+        }
+
+        .footer a {
+            color: var(--gold-color);
+        }
+
+        .highlight {
+            background: linear-gradient(transparent 60%, var(--gold-color) 60%);
+            padding: 0 0.2rem;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 1.5rem;
+            }
+
+            .hero .subtitle {
+                font-size: 1rem;
+            }
+
+            .section {
+                padding: 1.5rem 1rem;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+
+            h3 {
+                font-size: 1.2rem;
+            }
+
+            table {
+                font-size: 0.9rem;
+            }
+
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>🎁 2026年新春お年玉プレゼント</h1>
+        <div class="subtitle">誰でも作れる！オーディオブック完全作成ガイド</div>
+        <div class="date">Google Cloud Text-to-Speech活用版</div>
+    </div>
+
+    <div class="container">
+        <div class="section toc">
+            <h2>📖 目次</h2>
+            <ul>
+                <li><a href="#about">このガイドについて</a></li>
+                <li><a href="#preparation">事前準備</a></li>
+                <li><a href="#google-cloud">Google Cloud設定</a></li>
+                <li><a href="#python-setup">Pythonセットアップ</a></li>
+                <li><a href="#script">スクリプト作成</a></li>
+                <li><a href="#usage">実行方法</a></li>
+                <li><a href="#pronunciation">読み方カスタマイズ</a></li>
+                <li><a href="#troubleshooting">トラブルシューティング</a></li>
+                <li><a href="#faq">よくある質問</a></li>
+            </ul>
+        </div>
+
+        <div class="section" id="about">
+            <h2>📖 このガイドについて</h2>
+            
+            <p>このガイドを読めば、<span class="highlight">プログラミング初心者でも</span>自分のPDFを高品質なオーディオブックに変換できます。</p>
+
+            <h3>🎯 このガイドでできること</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">✅</div>
+                    <div class="stat-label">PDFを高品質<br>日本語音声に変換</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">✅</div>
+                    <div class="stat-label">専門用語の<br>読み方カスタマイズ</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">✅</div>
+                    <div class="stat-label">縦書き・横書き<br>両方対応</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">⚡</div>
+                    <div class="stat-label">200ページ<br>約1-2分で変換</div>
+                </div>
+            </div>
+
+            <h3>💰 コスト</h3>
+            <ul>
+                <li>Google Cloud TTS: 200ページで約500円</li>
+                <li>初回無料枠: 毎月100万文字（Neural2音声）</li>
+            </ul>
+
+            <h3>⏱️ 所要時間</h3>
+            <ul>
+                <li>初回セットアップ: 30-60分</li>
+                <li>2回目以降: 数分（ファイルをドラッグ＆ドロップするだけ）</li>
+            </ul>
+        </div>
+
+        <div class="section" id="preparation">
+            <h2>📋 事前準備</h2>
+
+            <h3>必要なもの</h3>
+            <ol>
+                <li><strong>Googleアカウント</strong>（個人用でOK）</li>
+                <li><strong>Windows/Mac/Linux PC</strong></li>
+                <li><strong>Python 3.8以上</strong></li>
+                <li><strong>変換したいPDF</strong></li>
+            </ol>
+
+            <h3>Pythonのインストール確認</h3>
+            <p>コマンドプロンプト（Windows）またはターミナル（Mac/Linux）を開いて：</p>
+
+            <pre><code>python --version</code></pre>
+
+            <p>または</p>
+
+            <pre><code>python3 --version</code></pre>
+
+            <div class="success-box">
+                <strong>✅ Python 3.x.x</strong> と表示されればOK！
+            </div>
+
+            <div class="warning-box">
+                <strong>⚠️ 表示されない場合</strong><br>
+                <a href="https://www.python.org/" target="_blank">Python公式サイト</a>からインストールしてください。
+            </div>
+        </div>
+
+        <div class="section" id="google-cloud">
+            <h2>☁️ Google Cloud設定</h2>
+
+            <h3>ステップ1: 新規プロジェクト作成</h3>
+            <ol>
+                <li><a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>にアクセス</li>
+                <li>右上のプロジェクト選択 → 「新しいプロジェクト」</li>
+                <li>以下を入力：
+                    <ul>
+                        <li><strong>プロジェクト名</strong>: audiobook-tts-2026（任意）</li>
+                        <li><strong>組織</strong>: 「組織なし」を選択 <span class="highlight">⚠️ 重要！</span></li>
+                    </ul>
+                </li>
+                <li>「作成」をクリック</li>
+            </ol>
+
+            <h3>ステップ2: Text-to-Speech APIを有効化</h3>
+            <ol>
+                <li>左メニュー → 「APIとサービス」 → 「ライブラリ」</li>
+                <li>検索ボックスに <code>Text-to-Speech</code> と入力</li>
+                <li>「Cloud Text-to-Speech API」を選択</li>
+                <li>「有効にする」をクリック</li>
+            </ol>
+
+            <h3>ステップ3: サービスアカウント作成</h3>
+            <ol>
+                <li>左メニュー → 「IAMと管理」 → 「サービスアカウント」</li>
+                <li>「サービスアカウントを作成」</li>
+                <li>以下を入力：
+                    <ul>
+                        <li><strong>サービスアカウント名</strong>: audiobook-service（任意）</li>
+                        <li><strong>説明</strong>: オーディオブック生成用</li>
+                    </ul>
+                </li>
+                <li>「作成して続行」をクリック</li>
+            </ol>
+
+            <h3>ステップ4: ロールの付与</h3>
+            <ol>
+                <li>「ロールを選択」ドロップダウンをクリック</li>
+                <li>「編集者」を検索して選択</li>
+                <li>「続行」をクリック</li>
+                <li>「完了」をクリック</li>
+            </ol>
+
+            <h3>ステップ5: JSONキーの作成</h3>
+            <ol>
+                <li>作成したサービスアカウントをクリック</li>
+                <li>「鍵」タブを選択</li>
+                <li>「鍵を追加」 → 「新しい鍵を作成」</li>
+                <li>「JSON」を選択</li>
+                <li>「作成」をクリック</li>
+            </ol>
+
+            <div class="warning-box">
+                <strong>⚠️ 重要</strong><br>
+                ダウンロードされたJSONファイルを安全な場所に保存してください。
+            </div>
+
+            <h3>ステップ6: JSONキーの配置</h3>
+
+            <h4>Windows:</h4>
+            <pre><code>mkdir C:\credentials
+move C:\Users\あなたのユーザー名\Downloads\*.json C:\credentials\gcp-key.json</code></pre>
+
+            <h4>Mac/Linux:</h4>
+            <pre><code>mkdir ~/credentials
+mv ~/Downloads/*.json ~/credentials/gcp-key.json
+chmod 600 ~/credentials/gcp-key.json</code></pre>
+        </div>
+
+        <div class="section" id="python-setup">
+            <h2>🐍 Pythonセットアップ</h2>
+
+            <h3>必要なライブラリのインストール</h3>
+            <pre><code>pip install google-cloud-texttospeech pymupdf tqdm</code></pre>
+
+            <h3>各ライブラリの役割</h3>
+            <ul>
+                <li><code>google-cloud-texttospeech</code>: Google TTS API</li>
+                <li><code>pymupdf</code>: PDF読み込み（縦書き対応）</li>
+                <li><code>tqdm</code>: 進捗バー表示</li>
+            </ul>
+        </div>
+
+        <div class="section" id="script">
+            <h2>📝 スクリプト作成</h2>
+
+            <div class="emoji-box">
+                <p><strong>💡 ヒント</strong></p>
+                <p>以下のコードをテキストエディタ（メモ帳、VSCodeなど）で新規ファイルを作成し、<code>audiobook_creator.py</code>として保存してください。</p>
+            </div>
+
+            <div class="warning-box">
+                <p><strong>⚠️ 保存時の注意</strong></p>
+                <ul>
+                    <li>ファイル名: <code>audiobook_creator.py</code></li>
+                    <li>文字コード: <strong>UTF-8</strong> を必ず選択</li>
+                    <li>ファイルの種類: すべてのファイル</li>
+                </ul>
+            </div>
+
+            <p>完全なスクリプトコードは、元のMarkdownファイルまたはダウンロードしたファイルをご確認ください。（約500行のコードのため、HTMLでは概要のみ記載）</p>
+
+            <h3>スクリプト内の設定を変更</h3>
+            <p>スクリプトの中の以下の部分を、自分の環境に合わせて変更：</p>
+
+            <pre><code># Windowsの場合
+CREDENTIALS_PATH = r'C:\credentials\gcp-key.json'
+
+# Mac/Linuxの場合
+# CREDENTIALS_PATH = os.path.expanduser('~/credentials/gcp-key.json')</code></pre>
+
+            <p>JSONキーのパスを、ステップ6で保存した場所に合わせてください。</p>
+        </div>
+
+        <div class="section" id="usage">
+            <h2>▶️ 実行方法</h2>
+
+            <h3>基本的な使い方</h3>
+            <pre><code>python audiobook_creator.py あなたのファイル.pdf</code></pre>
+
+            <h3>出力先を指定する場合</h3>
+            <pre><code>python audiobook_creator.py あなたのファイル.pdf my_audiobook/</code></pre>
+
+            <h3>実行例</h3>
+            <pre><code># Windowsの場合
+python audiobook_creator.py "C:\Users\username\Documents\mybook.pdf"
+
+# Mac/Linuxの場合
+python audiobook_creator.py ~/Documents/mybook.pdf</code></pre>
+
+            <h3>実行結果</h3>
+            <p>成功すると、以下のファイルが作成されます：</p>
+
+            <pre><code>audiobook_output/
+├── _01_元のテキスト.txt
+├── _02_修正後のテキスト.txt
+├── _03_チャンク一覧.txt
+├── chapter_001.mp3
+├── chapter_002.mp3
+├── chapter_003.mp3
+└── ...</code></pre>
+        </div>
+
+        <div class="section" id="pronunciation">
+            <h2>🔤 読み方カスタマイズ</h2>
+
+            <h3>読み方辞書ファイルの作成</h3>
+            <p><code>audiobook_creator.py</code>と同じフォルダに、<code>pronunciation_dict.json</code>という名前で以下の内容を保存：</p>
+
+            <pre><code>{
+  "専門用語": "せんもんようご",
+  "AI": "エーアイ",
+  "CEO": "シーイーオー",
+  "人名・太郎": "じんめい たろう"
+}</code></pre>
+
+            <h3>辞書の編集ポイント</h3>
+            <ul>
+                <li><strong>キー</strong>（左側）: PDFに書かれている文字列</li>
+                <li><strong>値</strong>（右側）: 読ませたい読み方（ひらがな・カタカナ）</li>
+            </ul>
+
+            <h3>よくある専門用語の例</h3>
+            <pre><code>{
+  "AI": "エーアイ",
+  "IT": "アイティー",
+  "IoT": "アイオーティー",
+  "DX": "ディーエックス",
+  "CEO": "シーイーオー",
+  "HR": "エイチアール",
+  "KPI": "ケーピーアイ",
+  "PDF": "ピーディーエフ",
+  "URL": "ユーアールエル",
+  "SNS": "エスエヌエス"
+}</code></pre>
+
+            <div class="warning-box">
+                <h4>⚠️ 注意事項</h4>
+                <p><strong>最後の行にカンマ(,)を付けない</strong></p>
+                <pre><code>// ✅ 正しい例
+{
+  "AI": "エーアイ",
+  "CEO": "シーイーオー"
+}
+
+// ❌ 間違った例
+{
+  "AI": "エーアイ",
+  "CEO": "シーイーオー",  ← 最後にカンマ
+}</code></pre>
+            </div>
+        </div>
+
+        <div class="section" id="troubleshooting">
+            <h2>🔧 トラブルシューティング</h2>
+
+            <h3>❌ エラー: 認証に失敗する</h3>
+            <p><strong>原因</strong>: JSONキーのパスが間違っている</p>
+            <p><strong>解決策</strong>:</p>
+            <ol>
+                <li><code>audiobook_creator.py</code>の<code>CREDENTIALS_PATH</code>を確認</li>
+                <li>JSONファイルが実際に存在するか確認</li>
+            </ol>
+
+            <h3>❌ エラー: 5000バイト制限エラー</h3>
+            <div class="warning-box">
+                <code>400 Either `input.text` or `input.ssml` is longer than the limit of 5000 bytes.</code>
+            </div>
+            <p><strong>原因</strong>: チャンクが大きすぎる</p>
+            <p><strong>解決策</strong>: スクリプト内の<code>max_bytes</code>を小さくする</p>
+
+            <h3>❌ PDFからテキストが抽出できない</h3>
+            <p><strong>原因</strong>:</p>
+            <ul>
+                <li>PDFが画像のみ（スキャンPDF）</li>
+                <li>PDFが暗号化されている</li>
+            </ul>
+            <p><strong>解決策</strong>:</p>
+            <ol>
+                <li>PDFをOCR処理する</li>
+                <li>別のPDFを試す</li>
+                <li>Word文書から直接PDFを作成する</li>
+            </ol>
+        </div>
+
+        <div class="section" id="faq">
+            <h2>❓ よくある質問（FAQ）</h2>
+
+            <h3>Q1: Google Cloud無料枠はどのくらい？</h3>
+            <p><strong>A:</strong> 毎月100万文字（Neural2音声の場合）が無料です。約200ページ分のPDFに相当します。</p>
+
+            <h3>Q2: 商用利用は可能？</h3>
+            <p><strong>A:</strong> はい、Google Cloud TTSの規約に従えば商用利用可能です。ただし、生成された音声の二次配布には制限がある場合があるので、規約を確認してください。</p>
+
+            <h3>Q3: どんなPDFでも変換できる？</h3>
+            <p><strong>A:</strong> テキスト情報が含まれているPDFなら変換可能です。スキャンしただけの画像PDFは別途OCR処理が必要です。</p>
+
+            <h3>Q4: 音声の声を変更できる？</h3>
+            <p><strong>A:</strong> はい、Google TTSは複数の声を提供しています：</p>
+            <ul>
+                <li><code>ja-JP-Neural2-B</code>: 男性</li>
+                <li><code>ja-JP-Neural2-C</code>: 女性</li>
+                <li><code>ja-JP-Neural2-D</code>: 男性（別パターン）</li>
+            </ul>
+
+            <h3>Q5: 音声ファイルを結合できる？</h3>
+            <p><strong>A:</strong> はい、FFmpegなどのツールで結合可能です：</p>
+            <pre><code># Windowsの場合（PowerShell）
+cmd /c copy /b chapter_*.mp3 complete_audiobook.mp3
+
+# Mac/Linuxの場合
+cat chapter_*.mp3 > complete_audiobook.mp3</code></pre>
+        </div>
+
+        <div class="section">
+            <h2>🎉 まとめ</h2>
+
+            <div class="success-box">
+                <h3>このガイドで学んだこと</h3>
+                <ul>
+                    <li>✅ Google Cloud Text-to-Speechの設定</li>
+                    <li>✅ PDFからテキスト抽出</li>
+                    <li>✅ 高品質な音声合成</li>
+                    <li>✅ 読み方のカスタマイズ</li>
+                </ul>
+            </div>
+
+            <h3>次のステップ</h3>
+            <ol>
+                <li><strong>まずは試してみる</strong>
+                    <ul>
+                        <li>自分のPDFで実際に作成</li>
+                        <li>音声品質を確認</li>
+                        <li>読み方辞書を調整</li>
+                    </ul>
+                </li>
+                <li><strong>品質を高める</strong>
+                    <ul>
+                        <li>専門用語辞書を充実</li>
+                        <li>最適な声と速度を見つける</li>
+                        <li>チャンク分割を調整</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>🎁 おわりに</h2>
+
+            <p>このガイドを読んで、あなたも高品質なオーディオブックを作れるようになったはずです。</p>
+
+            <div class="emoji-box">
+                <p><strong>2026年、あなたの知識や経験を、もっと多くの人に届けましょう！</strong></p>
+                <p>音声という形で情報を届けることで：</p>
+                <ul>
+                    <li>📚 移動時間を学習時間に変えられる</li>
+                    <li>🎯 視覚障害者にも情報を届けられる</li>
+                    <li>🌟 あなたの影響力が拡大する</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin: 2rem 0;">
+                <p style="font-size: 1.5rem; color: var(--primary-color);"><strong>新年おめでとうございます！</strong></p>
+                <p>2026年が素晴らしい一年になりますように！</p>
+            </div>
+
+            <div style="text-align: center; margin: 2rem 0;">
+                <p>🎁 このガイドが役に立ったら、ぜひシェアしてください！</p>
+                <p><strong>#オーディオブック #GoogleCloudTTS #2026年お年玉 #新春プレゼント</strong></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p><strong>作成者</strong>: おぶすま社会保険労務事務所</p>
+        <p><strong>バージョン</strong>: 1.0.0 | <strong>公開日</strong>: 2026年1月1日</p>
+        <p style="margin-top: 1rem;">このガイドは教育目的で作成されています。実際の使用は自己責任でお願いします。</p>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem;">© 2026 おぶすま社会保険労務事務所</p>
+    </div>
+</body>
+</html>
