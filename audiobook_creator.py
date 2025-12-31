@@ -1,0 +1,393 @@
+# -*- coding: utf-8 -*-
+"""
+Audiobook Creator - オーディオブック作成ツール
+Google Cloud Text-to-Speech使用
+"""
+
+from google.cloud import texttospeech
+import fitz  # PyMuPDF
+import os
+import re
+import json
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
+
+class AudiobookCreator:
+    def __init__(self, credentials_path, max_workers=10, pronunciation_dict_path=None):
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+        self.max_workers = max_workers
+        self.pronunciation_dict = self.load_pronunciation_dict(pronunciation_dict_path)
+        self.stats = {
+            'total_chars': 0,
+            'total_chunks': 0,
+            'success_count': 0,
+            'error_count': 0,
+            'replacements': 0,
+            'start_time': None,
+            'end_time': None
+        }
+    
+    def load_pronunciation_dict(self, dict_path):
+        """読み方辞書を読み込み"""
+        
+        default_dict = {
+            # 英語専門用語
+            "HERO": "ヒーロー",
+            "Hope": "ホープ",
+            "Efficacy": "エフィカシー", 
+            "Resilience": "レジリエンス",
+            "Optimism": "オプティミズム",
+            "AI": "エーアイ",
+            "IT": "アイティー",
+            "DX": "ディーエックス",
+            "CEO": "シーイーオー",
+            "HR": "エイチアール",
+            "SNS": "エスエヌエス",
+            
+            # 在留資格関連
+            "在留資格": "ざいりゅうしかく",
+            "特定技能": "とくていぎのう",
+            "技能実習": "ぎのうじっしゅう",
+            "入管法": "にゅうかんほう",
+        }
+        
+        # カスタム辞書を読み込み
+        if dict_path and os.path.exists(dict_path):
+            try:
+                with open(dict_path, 'r', encoding='utf-8') as f:
+                    custom_dict = json.load(f)
+                    # 空文字キーを除外
+                    custom_dict = {k: v for k, v in custom_dict.items() if k and v}
+                    default_dict.update(custom_dict)
+                    print(f"✅ カスタム辞書読み込み: {dict_path}")
+                    print(f"   エントリー数: {len(custom_dict)}")
+            except Exception as e:
+                print(f"⚠️  辞書読み込みエラー: {e}")
+        
+        print(f"\n📖 読み方辞書準備完了")
+        print(f"   合計エントリー数: {len(default_dict)}")
+        
+        return default_dict
+    
+    def apply_pronunciation_dict(self, text):
+        """読み方辞書を適用"""
+        
+        if not self.pronunciation_dict:
+            return text
+        
+        replacements = 0
+        sorted_dict = sorted(self.pronunciation_dict.items(), key=lambda x: len(x[0]), reverse=True)
+        
+        for original, replacement in sorted_dict:
+            if original and original in text:
+                count = text.count(original)
+                text = text.replace(original, replacement)
+                replacements += count
+        
+        self.stats['replacements'] = replacements
+        
+        if replacements > 0:
+            print(f"\n📝 読み方修正適用: {replacements}箇所")
+        
+        return text
+    
+    def get_byte_length(self, text):
+        """UTF-8バイト数を取得"""
+        return len(text.encode('utf-8'))
+    
+    def extract_text_from_pdf(self, pdf_path):
+        """PDFからテキストを抽出"""
+        print(f"\n📖 PDF読み込み: {pdf_path}")
+        
+        try:
+            doc = fitz.open(pdf_path)
+            total_pages = len(doc)
+            print(f"   ページ数: {total_pages}")
+            
+            full_text = ""
+            
+            for page_num in tqdm(range(total_pages), desc="テキスト抽出中"):
+                page = doc[page_num]
+                blocks = page.get_text("blocks")
+                blocks.sort(key=lambda b: (b[1], b[0]))
+                
+                page_text = ""
+                for block in blocks:
+                    text = block[4]
+                    if text.strip():
+                        page_text += text.strip() + "\n"
+                
+                full_text += page_text + "\n"
+            
+            doc.close()
+            
+            full_text = self.clean_text(full_text)
+            
+            print(f"✅ 抽出完了")
+            print(f"   文字数: {len(full_text):,}")
+            print(f"   バイト数: {self.get_byte_length(full_text):,}")
+            
+            return full_text
+            
+        except Exception as e:
+            print(f"❌ PDF読み込みエラー: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def clean_text(self, text):
+        """テキストをクリーニング"""
+        
+        text = text.replace('\r\n', '\n')
+        text = text.replace('\r', '\n')
+        text = re.sub(r' +', ' ', text)
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r'\n\d+\n', '\n', text)
+        text = re.sub(r'^\d+$', '', text, flags=re.MULTILINE)
+        
+        lines = [line.strip() for line in text.split('\n')]
+        text = '\n'.join(lines)
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        
+        return text.strip()
+    
+    def split_into_chunks(self, text, max_bytes=4000):
+        """バイト数でチャンクに分割"""
+        print(f"\n✂️  チャンク分割中（最大{max_bytes}バイト）...")
+        
+        paragraphs = text.split('\n\n')
+        chunks = []
+        current_chunk = ""
+        
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
+            
+            para_bytes = self.get_byte_length(para)
+            current_bytes = self.get_byte_length(current_chunk)
+            
+            if para_bytes > max_bytes:
+                sentences = re.split(r'([。！？\n])', para)
+                for i in range(0, len(sentences)-1, 2):
+                    sentence = sentences[i] + (sentences[i+1] if i+1 < len(sentences) else "")
+                    sentence_bytes = self.get_byte_length(sentence)
+                    
+                    if current_bytes + sentence_bytes < max_bytes:
+                        current_chunk += sentence
+                        current_bytes += sentence_bytes
+                    else:
+                        if current_chunk:
+                            chunks.append(current_chunk.strip())
+                        current_chunk = sentence
+                        current_bytes = sentence_bytes
+            else:
+                if current_bytes + para_bytes + 2 < max_bytes:
+                    current_chunk += para + "\n"
+                    current_bytes = self.get_byte_length(current_chunk)
+                else:
+                    if current_chunk:
+                        chunks.append(current_chunk.strip())
+                    current_chunk = para + "\n"
+                    current_bytes = para_bytes + 1
+        
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+        
+        print(f"   チャンク数: {len(chunks)}")
+        
+        for i, chunk in enumerate(chunks, 1):
+            chunk_bytes = self.get_byte_length(chunk)
+            if chunk_bytes > max_bytes:
+                print(f"   ⚠️  警告: チャンク{i}が{chunk_bytes}バイト（制限超過）")
+        
+        return chunks
+    
+    def synthesize_chunk(self, chunk_data):
+        """音声を合成"""
+        chunk_id, text, output_dir, voice_name = chunk_data
+        
+        try:
+            byte_length = self.get_byte_length(text)
+            if byte_length > 5000:
+                return (chunk_id, False, 0, f"テキストが長すぎます: {byte_length}バイト")
+            
+            client = texttospeech.TextToSpeechClient()
+            
+            synthesis_input = texttospeech.SynthesisInput(text=text)
+            voice = texttospeech.VoiceSelectionParams(
+                language_code="ja-JP",
+                name=voice_name
+            )
+            audio_config = texttospeech.AudioConfig(
+                audio_encoding=texttospeech.AudioEncoding.MP3,
+                speaking_rate=0.95,
+                pitch=0.0
+            )
+            
+            response = client.synthesize_speech(
+                input=synthesis_input,
+                voice=voice,
+                audio_config=audio_config
+            )
+            
+            output_file = os.path.join(output_dir, f"chapter_{chunk_id:03d}.mp3")
+            with open(output_file, 'wb') as out:
+                out.write(response.audio_content)
+            
+            return (chunk_id, True, len(response.audio_content), None)
+            
+        except Exception as e:
+            return (chunk_id, False, 0, str(e))
+    
+    def create_audiobook(self, pdf_path, output_dir='audiobook_output', voice_name='ja-JP-Neural2-B'):
+        """オーディオブック作成メイン処理"""
+        
+        print("=" * 60)
+        print("🎙️  オーディオブック作成ツール")
+        print("=" * 60)
+        
+        self.stats['start_time'] = time.time()
+        
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"\n📁 出力先: {output_dir}")
+        
+        text = self.extract_text_from_pdf(pdf_path)
+        if not text:
+            print("❌ テキスト抽出失敗")
+            return
+        
+        original_file = os.path.join(output_dir, "_01_元のテキスト.txt")
+        with open(original_file, 'w', encoding='utf-8') as f:
+            f.write(text)
+        print(f"\n📝 元のテキスト保存: {original_file}")
+        
+        text = self.apply_pronunciation_dict(text)
+        
+        corrected_file = os.path.join(output_dir, "_02_修正後のテキスト.txt")
+        with open(corrected_file, 'w', encoding='utf-8') as f:
+            f.write(text)
+        print(f"📝 修正後のテキスト保存: {corrected_file}")
+        
+        self.stats['total_chars'] = len(text)
+        
+        chunks = self.split_into_chunks(text, max_bytes=4000)
+        self.stats['total_chunks'] = len(chunks)
+        
+        chunks_file = os.path.join(output_dir, "_03_チャンク一覧.txt")
+        with open(chunks_file, 'w', encoding='utf-8') as f:
+            for i, chunk in enumerate(chunks, 1):
+                chunk_bytes = self.get_byte_length(chunk)
+                f.write(f"=== チャンク {i} （{len(chunk)}文字, {chunk_bytes}バイト） ===\n")
+                f.write(chunk)
+                f.write("\n\n")
+        print(f"📝 チャンク一覧保存: {chunks_file}")
+        
+        chunk_data_list = [
+            (i+1, chunk, output_dir, voice_name)
+            for i, chunk in enumerate(chunks)
+        ]
+        
+        print(f"\n🎙️  音声生成中（{self.max_workers}並列処理）...")
+        
+        results = []
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {
+                executor.submit(self.synthesize_chunk, data): data[0]
+                for data in chunk_data_list
+            }
+            
+            with tqdm(total=len(chunks), desc="進捗") as pbar:
+                for future in as_completed(futures):
+                    result = future.result()
+                    results.append(result)
+                    
+                    chunk_id, success, size, error = result
+                    if success:
+                        self.stats['success_count'] += 1
+                    else:
+                        self.stats['error_count'] += 1
+                        print(f"\n❌ チャンク{chunk_id}失敗: {error}")
+                    
+                    pbar.update(1)
+        
+        self.stats['end_time'] = time.time()
+        self.display_results(output_dir, results)
+    
+    def display_results(self, output_dir, results):
+        """結果を表示"""
+        elapsed_time = self.stats['end_time'] - self.stats['start_time']
+        total_size = sum(size for _, success, size, _ in results if success)
+        
+        print("\n" + "=" * 60)
+        print("✅ オーディオブック作成完了！")
+        print("=" * 60)
+        
+        print(f"\n📊 統計情報:")
+        print(f"   文字数: {self.stats['total_chars']:,}")
+        print(f"   読み方修正: {self.stats['replacements']}箇所")
+        print(f"   チャンク数: {self.stats['total_chunks']}")
+        print(f"   成功: {self.stats['success_count']}")
+        print(f"   失敗: {self.stats['error_count']}")
+        print(f"   音声サイズ: {total_size / 1024 / 1024:.2f} MB")
+        print(f"   処理時間: {elapsed_time:.1f}秒 ({elapsed_time/60:.2f}分)")
+        if elapsed_time > 0:
+            print(f"   処理速度: {self.stats['total_chars'] / elapsed_time:.0f} 文字/秒")
+        
+        print(f"\n📁 出力先:")
+        print(f"   {os.path.abspath(output_dir)}")
+        
+        print(f"\n💡 次のステップ:")
+        print(f"   1. chapter_001.mp3を再生して品質確認")
+        print(f"   2. 読み方に問題があれば辞書を編集")
+        print(f"   3. すべてのチャプターを確認")
+        
+        print(f"\n🎉 完成です！")
+
+
+def main():
+    import sys
+    
+    # ===== 設定 =====
+    # Windowsの場合
+    CREDENTIALS_PATH = r'C:\credentials\gcp-key.json'
+    # Mac/Linuxの場合（上の行をコメントアウトして、下の行を使用）
+    # CREDENTIALS_PATH = os.path.expanduser('~/credentials/gcp-key.json')
+    
+    VOICE_NAME = 'ja-JP-Neural2-B'  # 男性の声
+    # 女性の声を使う場合: 'ja-JP-Neural2-C'
+    
+    MAX_WORKERS = 10  # 並列処理数
+    # ================
+    
+    if len(sys.argv) < 2:
+        print("使い方: python audiobook_creator.py <PDFファイル> [出力先フォルダ]")
+        print("\n例:")
+        print("  python audiobook_creator.py mybook.pdf")
+        print("  python audiobook_creator.py mybook.pdf my_audiobook/")
+        return
+    
+    pdf_path = sys.argv[1]
+    output_dir = sys.argv[2] if len(sys.argv) > 2 else 'audiobook_output'
+    dict_path = 'pronunciation_dict.json'
+    
+    if not os.path.exists(pdf_path):
+        print(f"❌ PDFファイルが見つかりません: {pdf_path}")
+        return
+    
+    creator = AudiobookCreator(
+        credentials_path=CREDENTIALS_PATH,
+        max_workers=MAX_WORKERS,
+        pronunciation_dict_path=dict_path
+    )
+    
+    creator.create_audiobook(
+        pdf_path=pdf_path,
+        output_dir=output_dir,
+        voice_name=VOICE_NAME
+    )
+
+
+if __name__ == '__main__':
+    main()
