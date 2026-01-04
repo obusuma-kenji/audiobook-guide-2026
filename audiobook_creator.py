@@ -364,7 +364,7 @@ class AudiobookCreator:
 def main():
     import sys
     
-    CREDENTIALS_PATH = r'C:\credentials\audiobook-tts-2025-5024ca7a27e3.json'
+    CREDENTIALS_PATH = r'C:\credentials\your-google-credentials.json'
     VOICE_NAME = 'ja-JP-Neural2-B'
     MAX_WORKERS = 10
     
