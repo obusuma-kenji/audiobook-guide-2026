@@ -501,8 +501,7 @@ chmod 600 ~/credentials/gcp-key.json</code></pre>
 
             <pre><code># -*- coding: utf-8 -*-
 """
-Audiobook Creator - オーディオブック作成ツール
-Google Cloud Text-to-Speech使用
+Audiobook Creator v6 - URL削除・バイト数制限強化版
 """
 
 from google.cloud import texttospeech
@@ -534,23 +533,34 @@ class AudiobookCreator:
         
         default_dict = {
             # 英語専門用語
-            "HERO": "ヒーロー",
-            "Hope": "ホープ",
-            "Efficacy": "エフィカシー", 
-            "Resilience": "レジリエンス",
-            "Optimism": "オプティミズム",
             "AI": "エーアイ",
-            "IT": "アイティー",
+            "ASR": "エーエスアール",
+            "LLM": "エルエルエム",
+            "SaaS": "サース",
+            "Notta": "ノッタ",
+            "Zoom": "ズーム",
+            "Teams": "チームズ",
+            "Google Meet": "グーグルミート",
+            "tl;dv": "ティーエルディーブイ",
+            "ScribeAssist": "スクライブアシスト",
+            "AmiVoice": "アミボイス",
+            "YVC-1000": "ワイブイシーセンエイチャク",
+            "Yamaha": "ヤマハ",
+            "toruno": "トルノ",
+            "CLOVA Note": "クローバノート",
+            "LINE WORKS": "ラインワークス",
+            "PLAUD NOTE": "プラウドノート",
+            "Notta Memo": "ノッタメモ",
+            "ROI": "アールオーアイ",
+            "GDPR": "ジーディーピーアール",
+            "Copilot": "コパイロット",
+            "Gemini": "ジェミニ",
+            "Salesforce": "セールスフォース",
+            "HubSpot": "ハブスポット",
             "DX": "ディーエックス",
             "CEO": "シーイーオー",
             "HR": "エイチアール",
             "SNS": "エスエヌエス",
-            
-            # 在留資格関連
-            "在留資格": "ざいりゅうしかく",
-            "特定技能": "とくていぎのう",
-            "技能実習": "ぎのうじっしゅう",
-            "入管法": "にゅうかんほう",
         }
         
         # カスタム辞書を読み込み
@@ -638,10 +648,19 @@ class AudiobookCreator:
             return None
     
     def clean_text(self, text):
-        """テキストをクリーニング"""
+        """テキストをクリーニング（URL削除を含む）"""
         
         text = text.replace('\r\n', '\n')
         text = text.replace('\r', '\n')
+        
+        # URLを削除（NEW!）
+        print("🔧 URL削除中...")
+        url_pattern = r'https?://[^\s]+'
+        urls_found = len(re.findall(url_pattern, text))
+        text = re.sub(url_pattern, '', text)
+        if urls_found > 0:
+            print(f"   削除したURL数: {urls_found}")
+        
         text = re.sub(r' +', ' ', text)
         text = re.sub(r'\n{3,}', '\n\n', text)
         text = re.sub(r'\n\d+\n', '\n', text)
@@ -653,7 +672,7 @@ class AudiobookCreator:
         
         return text.strip()
     
-    def split_into_chunks(self, text, max_bytes=4000):
+    def split_into_chunks(self, text, max_bytes=2500):  # 2500に変更！
         """バイト数でチャンクに分割"""
         print(f"\n✂️  チャンク分割中（最大{max_bytes}バイト）...")
         
@@ -742,11 +761,12 @@ class AudiobookCreator:
         except Exception as e:
             return (chunk_id, False, 0, str(e))
     
-    def create_audiobook(self, pdf_path, output_dir='audiobook_output', voice_name='ja-JP-Neural2-B'):
+    def create_audiobook(self, pdf_path, output_dir='audiobook_output_v6', voice_name='ja-JP-Neural2-B'):
         """オーディオブック作成メイン処理"""
         
         print("=" * 60)
-        print("🎙️  オーディオブック作成ツール")
+        print("🎙️  オーディオブック作成ツール v6")
+        print("    URL削除・バイト数制限強化版")
         print("=" * 60)
         
         self.stats['start_time'] = time.time()
@@ -773,7 +793,7 @@ class AudiobookCreator:
         
         self.stats['total_chars'] = len(text)
         
-        chunks = self.split_into_chunks(text, max_bytes=4000)
+        chunks = self.split_into_chunks(text, max_bytes=2500)
         self.stats['total_chunks'] = len(chunks)
         
         chunks_file = os.path.join(output_dir, "_03_チャンク一覧.txt")
@@ -839,39 +859,23 @@ class AudiobookCreator:
         print(f"\n📁 出力先:")
         print(f"   {os.path.abspath(output_dir)}")
         
-        print(f"\n💡 次のステップ:")
-        print(f"   1. chapter_001.mp3を再生して品質確認")
-        print(f"   2. 読み方に問題があれば辞書を編集")
-        print(f"   3. すべてのチャプターを確認")
-        
         print(f"\n🎉 完成です！")
 
 
 def main():
     import sys
     
-    # ===== 設定 =====
-    # Windowsの場合
-    CREDENTIALS_PATH = r'C:\credentials\gcp-key.json'
-    # Mac/Linuxの場合（上の行をコメントアウトして、下の行を使用）
-    # CREDENTIALS_PATH = os.path.expanduser('~/credentials/gcp-key.json')
-    
-    VOICE_NAME = 'ja-JP-Neural2-B'  # 男性の声
-    # 女性の声を使う場合: 'ja-JP-Neural2-C'
-    
-    MAX_WORKERS = 10  # 並列処理数
-    # ================
+    CREDENTIALS_PATH = r'C:\credentials\audiobook-tts-2025-5024ca7a27e3.json'
+    VOICE_NAME = 'ja-JP-Neural2-B'
+    MAX_WORKERS = 10
     
     if len(sys.argv) < 2:
-        print("使い方: python audiobook_creator.py <PDFファイル> [出力先フォルダ]")
-        print("\n例:")
-        print("  python audiobook_creator.py mybook.pdf")
-        print("  python audiobook_creator.py mybook.pdf my_audiobook/")
+        print("使い方: python audiobook_creator_v6.py <PDFファイル> [出力先フォルダ]")
         return
     
     pdf_path = sys.argv[1]
-    output_dir = sys.argv[2] if len(sys.argv) > 2 else 'audiobook_output'
-    dict_path = 'pronunciation_dict.json'
+    output_dir = sys.argv[2] if len(sys.argv) > 2 else 'audiobook_output_v6'
+    dict_path = 'custom_pronunciation.json'
     
     if not os.path.exists(pdf_path):
         print(f"❌ PDFファイルが見つかりません: {pdf_path}")
